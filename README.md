@@ -66,7 +66,7 @@ R2 → **Manage R2 API Tokens** → Create API Token → 权限选 **Object Read
 ```
 
 ### 3.5 建 Pages 项目
-1. 把本目录推到 GitHub 仓库（`node_modules/` 已在 .gitignore 里）
+1. 把本目录推到 GitHub 仓库。**网页拖拽上传时只能拖仓库内容**：`node_modules`、`.npm-cache`、`.wrangler` 和 `.dev.vars` 都不能上传（前三个是依赖与缓存，`.dev.vars` 里是你的密码；网页上传不看 .gitignore）。现成的干净目录见第 8.1 节
 2. Cloudflare → **Workers & Pages** → Create → **Pages** → Connect to Git → 选该仓库
 3. 构建设置：**Build command 留空**，**Build output directory 填 `public`**
 4. Settings → **Functions** → R2 bucket bindings → 变量名 `BUCKET` → 桶 `vfx-portfolio`
@@ -82,11 +82,16 @@ Settings → **Environment variables**（Production，建议加密存储）：
 | `R2_ACCESS_KEY_ID` | 3.2 里的 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | 3.2 里的 Secret Access Key |
 | `R2_BUCKET_NAME` | `vfx-portfolio` |
-| `PUBLIC_MEDIA_BASE` | 3.3 里的 `https://pub-xxxxxxxx.r2.dev` |
+| `PUBLIC_MEDIA_BASE`（可选） | 3.3 里的 `https://pub-xxxxxxxx.r2.dev`。**不填也没关系**：视频会自动走同源 `/media` 代理。填了就用直连，更省 Worker 请求 |
 | `R2_ENDPOINT`（可选） | 换到非 R2 存储时填端点，如 `https://cos.ap-guangzhou.myqcloud.com`；留空即用 R2 |
 | `R2_REGION`（可选） | 配合上面的端点用，默认 `auto` |
 
 改完重新部署一次，然后访问 `https://你的项目名.pages.dev/admin`。
+
+> ⚠️ **绝对不要把环境变量写进 `wrangler.toml` 的 `[vars]`。**
+> `wrangler pages deploy` 会用它同步 Pages 项目的环境变量：本地写什么值就**覆盖**控制台里的真实值，删掉这一节又会把变量**删掉**。
+> 这个坑真实发生过一次——`PUBLIC_MEDIA_BASE` 被本地模板值 `https://pub-REPLACE-ME.r2.dev` 覆盖，导致所有视频都播不出来。
+> 环境变量一律只在控制台维护，`wrangler.toml` 里保持没有 `[vars]` 这一节。
 
 ## 4. 部署后验证清单
 
@@ -103,6 +108,7 @@ Settings → **Environment variables**（Production，建议加密存储）：
 - **国内访问**：`*.pages.dev` 与 `*.r2.dev` 在大陆的连通性和速度不稳定，这是本方案唯一的硬伤。若体验不可接受，两条退路：
   1. 买一个便宜域名绑到 Cloudflare（$1–2/年），自定义域名的国内访问通常好于 `pages.dev`；
   2. 换成国内对象存储（腾讯云 COS / 七牛云）——**后端是 S3 兼容设计**，用第 7 节的迁移脚本搬对象，再改两个环境变量即可，前端与数据格式都不用动。
+- **视频怎么送达**：默认走同源 `/media/<key>` 代理，由 Pages Functions 从 R2 绑定读流，并支持 HTTP Range（拖进度条能 seek）。好处是**不需要开启公有桶、不受 r2.dev 限速、没有跨域问题**。代价是流量经过 Worker；想更省就去 R2 开公有访问，把 r2.dev 域名填进 `PUBLIC_MEDIA_BASE`，代码会自动切回直连，代理继续作为兜底。
 - **免费额度**：R2 每月 10 GB 存储 + 100 万次写 + 1000 万次读，出网免费。超出后 $0.015/GB·月。按 1080p60 15 Mbps 算，10 GB ≈ 90 个 1 分钟片段。
 - **画质**：站点不做任何转码，观众下载到的是你上传的原片。建议导出 **H.264 + faststart**、1080p60、12–25 Mbps；H.265/AV1 体积更小但浏览器兼容性差。
 - **单文件上限**：走的是单次 PUT，最大 5 GB（S3 单请求上限）。作品集场景足够。
@@ -128,14 +134,15 @@ npm run dev                              # -> http://127.0.0.1:8799
 ### 6.2 跑测试
 
 ```powershell
-npm test        # 依次跑下面四个套件
+npm test        # 依次跑下面五个套件
 ```
 
 | 套件 | 覆盖 |
 |---|---|
-| `test/run-tests.mjs` | 后端 24 项：会话签名与篡改/过期、登录、权限边界、SigV4 预签名、清单增删改查、路径穿越、端点覆盖 |
+| `test/run-tests.mjs` | 后端 28 项：会话签名与篡改/过期、登录、权限边界、SigV4 预签名、清单增删改查、路径穿越、标签分隔、播放地址回落、Range 解析 |
 | `test/check-frontend.mjs` | 前端静态一致性 95 项：HTML 的 id 与 JS 引用是否一一对应、资源路径是否存在、有无重复 id |
 | `test/dom-test.mjs` | 前端行为 16 项：在 jsdom 里真实渲染并模拟交互（卡片、弹层、键盘、筛选、登录、编辑回填） |
+| `test/visibility-test.mjs` | 可见性 4 项：静态分析 `hidden` 是否被 CSS 的 display 盖住。**jsdom 在这件事上会说谎**（它错误地让 hidden 生效），所以不能靠它测 |
 | `test/migrate-test.mjs` | 迁移脚本 14 项：签名交叉复算、分页列举、预演不写入、字节完全一致、幂等跳过、失败隔离、删除源的双重确认 |
 
 ### 6.3 端到端接口验证（部署后也建议跑一次）
@@ -174,7 +181,24 @@ node scripts/migrate.mjs --copy --delete-source --yes        # 确认无误后�
 
 个别厂商要求 SigV4 的 service name 用 `cos` 而不是 `s3`；若遇到签名错误，改 `functions/api/_lib.js` 里 `presignR2Put` 中的 `const service = 's3'` 一处即可。
 
-## 8. 日常使用
+## 8. 日常使用与发布更新
+
+### 8.1 发布更新（重要）
+
+Pages 项目是 **Git 连接**部署的：仓库一有新提交，Cloudflare 就按**仓库里的内容**重建。
+**只改本地、不推仓库的修改，会在下一次推送时被覆盖掉。**
+
+正确流程：
+
+1. 同步到 GitHub 仓库，二选一：
+   - **网页拖拽**：把 `github-upload/` 里的内容拖进仓库。该目录已剔除 `node_modules`、`.npm-cache`、`.wrangler`、`.dev.vars`，可直接拖。
+   - **命令行**：`git add -A && git commit -m "..." && git push`
+2. 等 Cloudflare 自动重建（约 1 分钟）
+3. 刷新线上页面确认
+
+只想临时改线上、暂时不管仓库，也可以 `npm run deploy` 直接部署，但**下次有人推仓库时会被覆盖**。
+
+### 8.2 日常操作
 
 - 加作品：进 `/admin` → 拖视频 → 补文案 → 上传并发布
 - 改文案／调顺序：列表里点「编辑文案」，改完保存（不会重传视频）

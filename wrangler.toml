@@ -1,4 +1,4 @@
-name = "vfx-portfolio"
+name = "portfolio"
 compatibility_date = "2025-01-01"
 pages_build_output_dir = "public"
 
@@ -6,5 +6,7 @@ pages_build_output_dir = "public"
 binding = "BUCKET"
 bucket_name = "vfx-portfolio"
 
-[vars]
-PUBLIC_MEDIA_BASE = "https://pub-REPLACE-ME.r2.dev"
+# 重要：这里绝对不要写 [vars]。
+# wrangler pages deploy 会把本文件的 [vars] 应用到 Pages 项目的环境变量上，
+# 于是本地占位符会覆盖掉你在控制台里设置的真实值 —— PUBLIC_MEDIA_BASE 就这样被覆盖过一次。
+# 环境变量一律只在 Cloudflare 控制台里维护。

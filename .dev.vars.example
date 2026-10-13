@@ -1,0 +1,9 @@
+# 本地预览用：复制成 .dev.vars 后按你的真实值填写（.dev.vars 已被 .gitignore 忽略）
+# 只做前端与 API 联调的话，下面这组假值就够了 —— 预签名 URL 是本地算出来的，不会真的访问 R2
+ADMIN_PASSWORD="local-dev-password"
+SESSION_SECRET="local-dev-secret-please-change"
+R2_ACCOUNT_ID="localacct"
+R2_ACCESS_KEY_ID="localaccesskey"
+R2_SECRET_ACCESS_KEY="localsecretkey"
+R2_BUCKET_NAME="vfx-portfolio"
+PUBLIC_MEDIA_BASE="https://pub-local.r2.dev"

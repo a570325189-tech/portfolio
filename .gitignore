@@ -1,0 +1,5 @@
+node_modules/
+.npm-cache/
+.dev.vars
+.wrangler/
+migrate.config.json

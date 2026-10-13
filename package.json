@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler pages dev public --port 8799 --persist-to .wrangler/state",
-    "deploy": "wrangler pages deploy public",
+    "deploy": "wrangler pages deploy public --project-name portfolio",
     "test": "node test/all.mjs",
     "migrate": "node scripts/migrate.mjs"
   },

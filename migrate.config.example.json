@@ -1,0 +1,16 @@
+{
+  "source": {
+    "endpoint": "https://你的账户ID.r2.cloudflarestorage.com",
+    "bucket": "vfx-portfolio",
+    "accessKeyId": "从 R2 API 令牌拿",
+    "secretAccessKey": "从 R2 API 令牌拿",
+    "region": "auto"
+  },
+  "destination": {
+    "endpoint": "https://cos.ap-guangzhou.myqcloud.com",
+    "bucket": "你的桶名-1250000000",
+    "accessKeyId": "目标存储的 SecretId",
+    "secretAccessKey": "目标存储的 SecretKey",
+    "region": "ap-guangzhou"
+  }
+}

@@ -183,8 +183,31 @@ export async function writeManifest(env, manifest) {
 }
 
 export function mediaUrl(env, key) {
-  const base = String(env.PUBLIC_MEDIA_BASE || '').replace(/[/]+$/, '');
+  const raw = String(env.PUBLIC_MEDIA_BASE || '').trim();
+  const usable = raw.length > 0 && raw.indexOf('http') === 0 && raw.indexOf('REPLACE-ME') < 0;
+  // 没有配置、配错、或还是模板占位符时，统一回落到同源代理 /media
+  const base = usable ? raw.replace(/[/]+$/, '') : '/media';
   return base + '/' + key;
+}
+
+const TAG_SEPARATORS = [',', '，', '、', ';', '；'];
+
+export function normalizeTags(input) {
+  const list = Array.isArray(input) ? input : [];
+  const out = [];
+  list.forEach(function (raw) {
+    let pieces = [String(raw)];
+    TAG_SEPARATORS.forEach(function (sep) {
+      const next = [];
+      pieces.forEach(function (piece) { next.push.apply(next, piece.split(sep)); });
+      pieces = next;
+    });
+    pieces.forEach(function (piece) {
+      const t = piece.trim();
+      if (t && out.indexOf(t) < 0) out.push(t);
+    });
+  });
+  return out.slice(0, 12);
 }
 
 export function publicVideo(v, env) {
@@ -192,7 +215,7 @@ export function publicVideo(v, env) {
     id: v.id,
     title: v.title || '未命名',
     description: v.description || '',
-    tags: Array.isArray(v.tags) ? v.tags : [],
+    tags: normalizeTags(v.tags),
     engine: v.engine || '',
     role: v.role || '',
     duration: v.duration || null,

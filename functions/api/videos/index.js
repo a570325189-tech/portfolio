@@ -1,4 +1,4 @@
-import { json, fail, isAuthed, readManifest, writeManifest, publicVideo, newId } from '../_lib.js';
+import { json, fail, isAuthed, readManifest, writeManifest, publicVideo, newId, normalizeTags } from '../_lib.js';
 
 function sorted(videos) {
   return videos.slice().sort(function (a, b) {
@@ -37,9 +37,7 @@ export async function onRequestPost(context) {
 
   const manifest = await readManifest(env);
   const now = new Date().toISOString();
-  const tags = Array.isArray(body.tags)
-    ? body.tags.map(function (t) { return String(t).trim(); }).filter(function (t) { return t.length > 0; }).slice(0, 12)
-    : [];
+  const tags = normalizeTags(body.tags);
   const existing = body && body.id
     ? manifest.videos.filter(function (v) { return v.id === body.id; })[0]
     : null;

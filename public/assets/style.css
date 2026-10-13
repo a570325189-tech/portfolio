@@ -10,6 +10,10 @@
   --radius: 12px;
 }
 * { box-sizing: border-box; }
+/* 关键：hidden 属性靠浏览器默认样式的 display:none 生效，而作者样式优先级更高。
+   .lightbox 和 .center 都是 display:flex，会把 hidden 完全盖住 —— 于是 element.hidden = true
+   看起来就像"按钮失灵"。这条规则让 hidden 永远赢。 */
+[hidden] { display: none !important; }
 html, body { margin: 0; padding: 0; }
 body {
   background: var(--bg);

@@ -193,7 +193,7 @@ async function submit() {
   const meta = {
     title: title,
     description: el('description').value,
-    tags: el('tags').value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; }),
+    tags: el('tags').value.split(/[,，、;；]/).map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; }),
     engine: el('engine').value,
     role: el('role').value,
     order: Number(el('order').value) || 0
