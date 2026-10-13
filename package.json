@@ -1,0 +1,15 @@
+{
+  "name": "vfx-portfolio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public --port 8799 --persist-to .wrangler/state",
+    "deploy": "wrangler pages deploy public",
+    "test": "node test/all.mjs",
+    "migrate": "node scripts/migrate.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.2",
+    "wrangler": "^4.150.0"
+  }
+}

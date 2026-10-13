@@ -1,0 +1,10 @@
+name = "vfx-portfolio"
+compatibility_date = "2025-01-01"
+pages_build_output_dir = "public"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "vfx-portfolio"
+
+[vars]
+PUBLIC_MEDIA_BASE = "https://pub-REPLACE-ME.r2.dev"
