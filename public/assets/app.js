@@ -1,4 +1,5 @@
-const state = { videos: [], tags: [], filter: '全部', index: -1 };
+const PAGE_SIZE = 12;
+const state = { videos: [], tags: [], filter: '全部', index: -1, page: 1 };
 
 function el(id) { return document.getElementById(id); }
 
@@ -36,6 +37,16 @@ function visible() {
   return state.videos.filter(function (v) { return v.tags.indexOf(state.filter) >= 0; });
 }
 
+function pageCount() {
+  return Math.max(1, Math.ceil(visible().length / PAGE_SIZE));
+}
+
+function pageItems() {
+  const all = visible();
+  const start = (state.page - 1) * PAGE_SIZE;
+  return all.slice(start, start + PAGE_SIZE);
+}
+
 function renderFilter() {
   const box = el('tag-filter');
   box.textContent = '';
@@ -45,6 +56,7 @@ function renderFilter() {
     b.type = 'button';
     b.addEventListener('click', function () {
       state.filter = tag;
+      state.page = 1;
       renderFilter();
       renderGrid();
     });
@@ -54,10 +66,14 @@ function renderFilter() {
 
 function renderGrid() {
   const grid = el('grid');
-  const list = visible();
+  const all = visible();
+  const maxPage = pageCount();
+  if (state.page > maxPage) state.page = maxPage;
+  if (state.page < 1) state.page = 1;
+  const list = pageItems();
   grid.textContent = '';
-  el('empty').hidden = list.length > 0;
-  el('count').textContent = list.length > 0 ? ('共 ' + list.length + ' 个作品') : '';
+  el('empty').hidden = all.length > 0;
+  el('count').textContent = all.length > 0 ? ('共 ' + all.length + ' 个作品') : '';
   list.forEach(function (v, i) {
     const card = make('article', 'card');
     card.tabIndex = 0;
@@ -90,10 +106,78 @@ function renderGrid() {
     card.addEventListener('keydown', function (e) { if (e.key === 'Enter') open(); });
     grid.appendChild(card);
   });
+  renderPager();
+}
+
+function pageWindow(current, total) {
+  const marks = [1, total, current - 1, current, current + 1];
+  const picked = [];
+  marks.forEach(function (p) {
+    if (p >= 1 && p <= total && picked.indexOf(p) < 0) picked.push(p);
+  });
+  picked.sort(function (a, b) { return a - b; });
+  const out = [];
+  let prev = 0;
+  picked.forEach(function (p) {
+    if (prev && p - prev > 1) out.push(0);
+    out.push(p);
+    prev = p;
+  });
+  return out;
+}
+
+function renderPager() {
+  const total = pageCount();
+  const pager = el('pager');
+  if (total <= 1) {
+    pager.hidden = true;
+    el('pg-nums').textContent = '';
+    return;
+  }
+  pager.hidden = false;
+  el('pg-prev').disabled = state.page <= 1;
+  el('pg-next').disabled = state.page >= total;
+  const nums = el('pg-nums');
+  nums.textContent = '';
+  pageWindow(state.page, total).forEach(function (p) {
+    if (p === 0) { nums.appendChild(make('span', 'pg-gap', '…')); return; }
+    const b = make('button', 'pg' + (p === state.page ? ' on' : ''), String(p));
+    b.type = 'button';
+    b.addEventListener('click', function () { goPage(p); });
+    nums.appendChild(b);
+  });
+  el('pg-input').value = '';
+}
+
+function goPage(p) {
+  const total = pageCount();
+  let target = Math.floor(Number(p));
+  if (!isFinite(target)) return;
+  if (target < 1) target = 1;
+  if (target > total) target = total;
+  if (target === state.page) { el('pg-input').value = ''; return; }
+  state.page = target;
+  renderGrid();
+  history.replaceState(null, '', '#page=' + target);
+  const host = document.querySelector('main');
+  if (host && host.scrollIntoView) {
+    try { host.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { window.scrollTo(0, 0); }
+  }
+}
+
+function wirePager() {
+  el('pg-prev').addEventListener('click', function () { goPage(state.page - 1); });
+  el('pg-next').addEventListener('click', function () { goPage(state.page + 1); });
+  el('pg-input').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    const raw = el('pg-input').value.trim();
+    if (!raw) return;
+    goPage(raw);
+  });
 }
 
 function openAt(i) {
-  const list = visible();
+  const list = pageItems();
   if (i < 0 || i >= list.length) return;
   state.index = i;
   const v = list[i];
@@ -105,9 +189,7 @@ function openAt(i) {
   const tags = el('lb-tags');
   tags.textContent = '';
   v.tags.forEach(function (t) {
-    const c = make('span', 'chip', t);
-    c.style.cursor = 'default';
-    tags.appendChild(c);
+    tags.appendChild(make('span', 'chip static', t));
   });
 
   const desc = el('lb-desc');
@@ -137,7 +219,7 @@ function closeLb() {
   el('lightbox').hidden = true;
   document.body.style.overflow = '';
   state.index = -1;
-  history.replaceState(null, '', location.pathname + location.search);
+  history.replaceState(null, '', state.page > 1 ? ('#page=' + state.page) : (location.pathname + location.search));
 }
 
 function step(delta) {
@@ -238,6 +320,7 @@ function applyConfig(cfg) {
 async function main() {
   wireLightbox();
   wireEmail();
+  wirePager();
   const cfg = await loadJson('/config.json');
   applyConfig(cfg);
 
@@ -262,10 +345,22 @@ async function main() {
     } catch (e) {}
   }
 
+  const pm = location.hash.match(/^#page=([0-9]+)$/);
+  if (pm) {
+    const want = parseInt(pm[1], 10);
+    if (isFinite(want) && want > 1) {
+      state.page = Math.min(pageCount(), want);
+      renderGrid();
+    }
+  }
   const m = location.hash.match(/^#v=([A-Za-z0-9-]+)$/);
   if (m) {
     const idx = visible().findIndex(function (v) { return v.id === m[1]; });
-    if (idx >= 0) openAt(idx);
+    if (idx >= 0) {
+      state.page = Math.floor(idx / PAGE_SIZE) + 1;
+      renderGrid();
+      openAt(idx - (state.page - 1) * PAGE_SIZE);
+    }
   }
 }
 

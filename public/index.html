@@ -25,6 +25,12 @@
   </div>
   <div class="grid" id="grid"></div>
   <p class="empty" id="empty" hidden>还没有发布作品。</p>
+  <nav class="pager" id="pager" hidden aria-label="分页">
+    <button class="pg" id="pg-prev" type="button" aria-label="上一页">&#10094;</button>
+    <span class="pg-nums" id="pg-nums"></span>
+    <button class="pg" id="pg-next" type="button" aria-label="下一页">&#10095;</button>
+    <span class="pg-jump">跳转 <input id="pg-input" type="text" inputmode="numeric" maxlength="3" aria-label="跳转到第几页"> 页</span>
+  </nav>
 </main>
 
 <footer class="wrap foot"><span id="foot"></span></footer>

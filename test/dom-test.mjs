@@ -148,6 +148,109 @@ await test('复制按钮在没有剪贴板 API 时回退选中文本且不报错
   d1.dispatchEvent(new w1.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 });
 
+// ---------------- 分页 ----------------
+const MANY = {
+  updated: '2026-08-14T00:00:00.000Z',
+  count: 14,
+  tags: ['二次元', '斩击'],
+  videos: Array.from({ length: 14 }, function (_, i) {
+    const n = i + 1;
+    return {
+      id: 'w' + (n < 10 ? '0' + n : n),
+      title: '作品 ' + n,
+      description: '',
+      tags: [n % 2 === 0 ? '二次元' : '斩击'],
+      engine: 'UE5', role: '特效设计',
+      duration: 6, size: 1000000,
+      url: '/media/videos/w' + n + '/clip.mp4',
+      poster: null, order: 14 - n
+    };
+  })
+};
+const w3 = boot('index.html', async function (url) {
+  const u = String(url);
+  if (u.indexOf('/config.json') >= 0) return { ok: true, status: 200, json: async () => config };
+  if (u.indexOf('/api/videos') >= 0) return { ok: true, status: 200, json: async () => MANY };
+  return { ok: false, status: 404, json: async () => ({}) };
+});
+await import(pathToFileURL(path.join(pub, 'assets/app.js')).href + '?v=3');
+await tick();
+const d3 = w3.document;
+
+await test('作品不足一页时不显示分页控件', async () => {
+  assert.equal(d1.getElementById('pager').hidden, true, '2 个作品不该出现分页');
+});
+await test('14 个作品时每页只渲染 12 个，总数仍显示 14', async () => {
+  assert.equal(d3.getElementById('grid').children.length, 12);
+  assert.equal(d3.getElementById('count').textContent, '共 14 个作品');
+});
+await test('分页控件出现，共 2 页，当前页高亮', async () => {
+  assert.equal(d3.getElementById('pager').hidden, false);
+  const nums = d3.getElementById('pg-nums').children;
+  assert.equal(nums.length, 2);
+  assert.equal(nums[0].textContent, '1');
+  assert.equal(nums[0].className.indexOf('on') >= 0, true);
+});
+await test('第 1 页时「上一页」禁用、「下一页」可用', async () => {
+  assert.equal(d3.getElementById('pg-prev').disabled, true);
+  assert.equal(d3.getElementById('pg-next').disabled, false);
+});
+await test('点「下一页」后只剩 2 个作品，且是第 13、14 个', async () => {
+  d3.getElementById('pg-next').dispatchEvent(new w3.Event('click', { bubbles: true }));
+  const cards = d3.getElementById('grid').children;
+  assert.equal(cards.length, 2);
+  assert.equal(cards[0].querySelector('.card-title').textContent, '作品 13');
+  assert.equal(cards[1].querySelector('.card-title').textContent, '作品 14');
+  assert.equal(w3.location.hash, '#page=2');
+  assert.equal(d3.getElementById('pg-next').disabled, true);
+});
+await test('输入页码回车可跳回第 1 页', async () => {
+  const input = d3.getElementById('pg-input');
+  input.value = '1';
+  input.dispatchEvent(new w3.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(d3.getElementById('grid').children.length, 12);
+  assert.equal(w3.location.hash, '#page=1');
+});
+await test('页码越界会被夹到有效范围，不会白屏', async () => {
+  const input = d3.getElementById('pg-input');
+  input.value = '99';
+  input.dispatchEvent(new w3.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(d3.getElementById('grid').children.length, 2);
+  assert.equal(w3.location.hash, '#page=2');
+});
+await test('点页码按钮可直接跳到该页', async () => {
+  const nums = d3.getElementById('pg-nums').children;
+  nums[0].dispatchEvent(new w3.Event('click', { bubbles: true }));
+  assert.equal(d3.getElementById('grid').children.length, 12);
+  assert.equal(w3.location.hash, '#page=1');
+});
+await test('切标签后回到第 1 页；结果只剩 1 页时隐藏分页', async () => {
+  const chips = d3.getElementById('tag-filter').children;
+  const target = Array.prototype.filter.call(chips, function (c) { return c.textContent === '斩击'; })[0];
+  target.dispatchEvent(new w3.Event('click', { bubbles: true }));
+  assert.equal(d3.getElementById('count').textContent, '共 7 个作品');
+  assert.equal(d3.getElementById('grid').children.length, 7);
+  assert.equal(d3.getElementById('pager').hidden, true, '只有 1 页时不该显示分页');
+});
+await test('弹层里的前后切换只在当前页内，不跨页', async () => {
+  const chips = d3.getElementById('tag-filter').children;
+  const allChip = Array.prototype.filter.call(chips, function (c) { return c.textContent === '全部'; })[0];
+  allChip.dispatchEvent(new w3.Event('click', { bubbles: true }));
+  d3.getElementById('pg-next').dispatchEvent(new w3.Event('click', { bubbles: true }));
+  const cards = d3.getElementById('grid').children;
+  assert.equal(cards.length, 2);
+  cards[0].dispatchEvent(new w3.Event('click', { bubbles: true }));
+  assert.equal(d3.getElementById('lb-title').textContent, '作品 13');
+  assert.equal(d3.getElementById('lb-prev').disabled, true, '本页第一个不该能往前切');
+  d3.dispatchEvent(new w3.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+  assert.equal(d3.getElementById('lb-title').textContent, '作品 14');
+  assert.equal(d3.getElementById('lb-next').disabled, true, '本页最后一个不该能往后切');
+  d3.dispatchEvent(new w3.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+});
+await test('关闭弹层后地址栏恢复成当前页码', async () => {
+  assert.equal(w3.location.hash, '#page=2');
+});
+
 // ---------------- 后台 ----------------
 const calls = [];
 let authed = false;
