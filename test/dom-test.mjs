@@ -253,10 +253,14 @@ await test('关闭弹层后地址栏恢复成当前页码', async () => {
 
 // ---------------- 后台 ----------------
 const calls = [];
+const bodies = [];
 let authed = false;
 const w2 = boot('admin.html', async function (url, opts) {
   const u = String(url);
   calls.push((opts && opts.method ? opts.method : 'GET') + ' ' + u);
+  if (opts && typeof opts.body === 'string' && u.indexOf('/api/videos') >= 0) {
+    try { bodies.push(JSON.parse(opts.body)); } catch (e) {}
+  }
   if (u.indexOf('/api/session') >= 0) return { ok: true, status: 200, json: async () => ({ authed: authed }) };
   if (u.indexOf('/api/login') >= 0) { authed = true; return { ok: true, status: 200, json: async () => ({ ok: true }) }; }
   if (u.indexOf('/api/videos') >= 0) return { ok: true, status: 200, json: async () => FIXTURE };
@@ -308,6 +312,21 @@ await test('编辑模式缺标题时不会发起请求', async () => {
   await tick();
   assert.equal(calls.length, before);
   assert.ok(d2.getElementById('form-msg').textContent.indexOf('标题') >= 0);
+});
+await test('保存编辑时请求体带 id、不带 videoKey（服务端必须能接受）', async () => {
+  const items = d2.getElementById('list').children;
+  items[0].querySelectorAll('button')[0].dispatchEvent(new w2.Event('click', { bubbles: true }));
+  d2.getElementById('tags').value = '斩击, 新标签';
+  const before = bodies.length;
+  d2.getElementById('submit').dispatchEvent(new w2.Event('click', { bubbles: true }));
+  await tick();
+  assert.equal(bodies.length, before + 1, '没有发出保存请求');
+  const body = bodies[bodies.length - 1];
+  assert.equal(body.id, 'aaa111');
+  assert.ok(body.title, '标题应该一起带上');
+  assert.equal(Object.prototype.hasOwnProperty.call(body, 'videoKey'), false, '编辑时不该带 videoKey');
+  assert.deepEqual(body.tags, ['斩击', '新标签']);
+  assert.ok(d2.getElementById('form-msg').textContent.indexOf('已保存') >= 0, '没有保存成功的反馈');
 });
 
 console.log('');

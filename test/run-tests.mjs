@@ -228,6 +228,34 @@ await test('metadata edit keeps the same id', async () => {
   const list = await (await videosGet(ctx(ENV, {}))).json();
   assert.equal(list.count, 1);
 });
+await test('编辑文案时不传 videoKey 也能保存（管理页改标签就是这么发的）', async () => {
+  const before = (await (await videosGet(ctx(ENV, {}))).json()).videos.filter(function (v) { return v.id === created.id; })[0];
+  const res = await videosPost(ctx(ENV, { method: 'POST', cookie: cookieHeader, body: {
+    id: created.id, title: before.title, description: before.description,
+    tags: ['标签改过了', '新标签']
+  } }));
+  assert.equal(res.status, 200, '编辑保存被服务端拒绝了（线上真实故障）');
+  const v = (await res.json()).video;
+  assert.deepEqual(v.tags, ['标签改过了', '新标签']);
+  assert.equal(v.url, before.url, '编辑不该改动视频地址');
+});
+await test('编辑时传了非法 videoKey 仍然会被拒绝', async () => {
+  const res = await videosPost(ctx(ENV, { method: 'POST', cookie: cookieHeader, body: {
+    id: created.id, title: 'x', videoKey: 'evil/x.mp4'
+  } }));
+  assert.equal(res.status, 400);
+});
+await test('编辑不会动 videoKey 与 posterKey', async () => {
+  const list = await (await videosGet(ctx(ENV, {}))).json();
+  const v = list.videos.filter(function (x) { return x.id === created.id; })[0];
+  assert.equal(v.url, 'https://pub-test.r2.dev/' + upload.key);
+  assert.equal(v.poster, 'https://pub-test.r2.dev/videos/' + upload.id + '/poster.jpg');
+});
+await test('新增时仍然必须有 videoKey', async () => {
+  const res = await videosPost(ctx(ENV, { method: 'POST', cookie: cookieHeader, body: { title: '没有 key 的新作品' } }));
+  assert.equal(res.status, 400);
+});
+
 await test('delete removes object bytes and the manifest entry', async () => {
   const res = await videoDelete(ctx(ENV, { method: 'DELETE', cookie: cookieHeader, params: { id: created.id } }));
   assert.equal(res.status, 200);

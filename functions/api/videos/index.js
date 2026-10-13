@@ -29,11 +29,7 @@ export async function onRequestPost(context) {
   let body;
   try { body = await request.json(); } catch (e) { return fail(400, '请求体不是合法 JSON'); }
   const title = body && body.title ? String(body.title).trim() : '';
-  const videoKey = body && body.videoKey ? String(body.videoKey) : '';
   if (!title) return fail(400, '标题不能为空');
-  if (!videoKey || videoKey.indexOf('videos/') !== 0) return fail(400, 'videoKey 非法');
-  const posterKey = body && body.posterKey ? String(body.posterKey) : null;
-  if (posterKey && posterKey.indexOf('videos/') !== 0) return fail(400, 'posterKey 非法');
 
   const manifest = await readManifest(env);
   const now = new Date().toISOString();
@@ -41,6 +37,15 @@ export async function onRequestPost(context) {
   const existing = body && body.id
     ? manifest.videos.filter(function (v) { return v.id === body.id; })[0]
     : null;
+
+  // videoKey 只在"新增"时必填。
+  // 编辑文案时前端拿不到它（列表接口不暴露内部 key，这是有意的），所以缺省即沿用原值。
+  // 以前这里无条件校验，导致"改个标签保存"必然报 videoKey 非法。
+  const videoKey = body && body.videoKey ? String(body.videoKey) : '';
+  if (videoKey && videoKey.indexOf('videos/') !== 0) return fail(400, 'videoKey 非法');
+  if (!existing && !videoKey) return fail(400, 'videoKey 非法');
+  const posterKey = body && body.posterKey ? String(body.posterKey) : null;
+  if (posterKey && posterKey.indexOf('videos/') !== 0) return fail(400, 'posterKey 非法');
 
   if (existing) {
     existing.title = title;
