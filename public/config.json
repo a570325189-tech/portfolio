@@ -1,9 +1,10 @@
 {
-  "title": "特效作品集",
+  "title": "Ztwo的作品集",
   "subtitle": "二次元风格化特效 · 游戏实机 / 演示",
-  "owner": "你的名字",
+  "owner": "Ztwo",
+  "email": "570325189@qq.com",
   "links": [
-    { "label": "邮箱", "href": "mailto:you@example.com" },
+    { "label": "邮箱", "action": "email" },
     { "label": "B站", "href": "https://space.bilibili.com/" }
   ]
 }

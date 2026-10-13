@@ -118,6 +118,36 @@ await test('筛选到空结果时显示空状态', async () => {
   assert.equal(d1.getElementById('grid').children.length, 1);
 });
 
+await test('邮箱不再是 mailto 链接，而是按钮', async () => {
+  const links = d1.getElementById('site-links');
+  assert.equal(links.querySelectorAll('a[href^="mailto"]').length, 0, '还有 mailto 链接');
+  const btn = links.querySelector('button.linkbtn');
+  assert.ok(btn, '没找到邮箱按钮');
+  assert.equal(btn.textContent, '邮箱');
+  assert.equal(links.children.length, 2, '链接数量变了');
+});
+await test('点邮箱弹出弹层并显示地址', async () => {
+  d1.getElementById('site-links').querySelector('button.linkbtn').dispatchEvent(new w1.Event('click', { bubbles: true }));
+  assert.equal(d1.getElementById('email-modal').hidden, false, '弹层没打开');
+  assert.equal(d1.getElementById('email-value').textContent, '570325189@qq.com');
+});
+await test('Esc 关闭邮箱弹层', async () => {
+  d1.dispatchEvent(new w1.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(d1.getElementById('email-modal').hidden, true, 'Esc 关不掉');
+});
+await test('点遮罩也能关掉邮箱弹层', async () => {
+  d1.getElementById('site-links').querySelector('button.linkbtn').dispatchEvent(new w1.Event('click', { bubbles: true }));
+  assert.equal(d1.getElementById('email-modal').hidden, false);
+  d1.querySelector('#email-modal .modal-backdrop').dispatchEvent(new w1.Event('click', { bubbles: true }));
+  assert.equal(d1.getElementById('email-modal').hidden, true, '遮罩关不掉');
+});
+await test('复制按钮在没有剪贴板 API 时回退选中文本且不报错', async () => {
+  d1.getElementById('site-links').querySelector('button.linkbtn').dispatchEvent(new w1.Event('click', { bubbles: true }));
+  d1.getElementById('email-copy').dispatchEvent(new w1.Event('click', { bubbles: true }));
+  assert.ok(d1.getElementById('email-msg').textContent.length > 0, '没有任何提示');
+  d1.dispatchEvent(new w1.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+});
+
 // ---------------- 后台 ----------------
 const calls = [];
 let authed = false;

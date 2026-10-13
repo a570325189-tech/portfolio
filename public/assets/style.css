@@ -14,6 +14,23 @@
    .lightbox 和 .center 都是 display:flex，会把 hidden 完全盖住 —— 于是 element.hidden = true
    看起来就像"按钮失灵"。这条规则让 hidden 永远赢。 */
 [hidden] { display: none !important; }
+
+/* 邮箱弹层 */
+.modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(4, 6, 10, .82); backdrop-filter: blur(3px); }
+.modal-box { position: relative; width: min(430px, 100%); background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+.modal-box h2 { margin: 0 0 6px; font-size: 17px; }
+.modal-hint { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+.modal-value {
+  font-size: 19px; font-weight: 600; letter-spacing: .3px; color: var(--accent);
+  background: #0d1017; border: 1px solid var(--line); border-radius: 8px;
+  padding: 15px 12px; text-align: center; cursor: pointer; user-select: all;
+  word-break: break-all; margin-bottom: 16px;
+}
+.modal-value:hover { border-color: var(--accent); }
+.modal-close { top: 10px; right: 10px; }
+.linkbtn { background: none; border: 0; padding: 0; margin: 0; color: var(--accent); font: inherit; font-size: 14px; cursor: pointer; }
+.linkbtn:hover { text-decoration: underline; }
 html, body { margin: 0; padding: 0; }
 body {
   background: var(--bg);

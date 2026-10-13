@@ -145,6 +145,51 @@ function step(delta) {
   openAt(state.index + delta);
 }
 
+function openEmail() {
+  el('email-modal').hidden = false;
+  document.body.style.overflow = 'hidden';
+  el('email-msg').className = 'msg';
+  el('email-msg').textContent = '';
+}
+
+function closeEmail() {
+  el('email-modal').hidden = true;
+  if (el('lightbox').hidden) document.body.style.overflow = '';
+}
+
+function copyEmail() {
+  const text = el('email-value').textContent || '';
+  const msg = el('email-msg');
+  const ok = function () { msg.className = 'msg ok'; msg.textContent = '已复制，直接粘贴就行'; };
+  const manual = function () {
+    try {
+      const range = document.createRange();
+      range.selectNodeContents(el('email-value'));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      msg.className = 'msg';
+      msg.textContent = '已选中，按 Ctrl+C 复制';
+    } catch (e) {
+      msg.className = 'msg';
+      msg.textContent = '请手动选中上面的地址复制';
+    }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok).catch(manual);
+  } else {
+    manual();
+  }
+}
+
+function wireEmail() {
+  el('email-modal').addEventListener('click', function (e) {
+    if (e.target.getAttribute && e.target.getAttribute('data-emclose')) closeEmail();
+  });
+  el('email-copy').addEventListener('click', copyEmail);
+  el('email-value').addEventListener('click', copyEmail);
+}
+
 function wireLightbox() {
   el('lightbox').addEventListener('click', function (e) {
     if (e.target.getAttribute && e.target.getAttribute('data-close')) closeLb();
@@ -152,6 +197,10 @@ function wireLightbox() {
   el('lb-prev').addEventListener('click', function (e) { e.stopPropagation(); step(-1); });
   el('lb-next').addEventListener('click', function (e) { e.stopPropagation(); step(1); });
   document.addEventListener('keydown', function (e) {
+    if (!el('email-modal').hidden) {
+      if (e.key === 'Escape') closeEmail();
+      return;
+    }
     if (el('lightbox').hidden) return;
     if (e.key === 'Escape') closeLb();
     if (e.key === 'ArrowLeft') step(-1);
@@ -163,13 +212,23 @@ function applyConfig(cfg) {
   if (!cfg) return;
   if (cfg.title) { document.title = cfg.title; el('site-title').textContent = cfg.title; }
   if (cfg.subtitle) el('site-sub').textContent = cfg.subtitle;
+  if (cfg.email) el('email-value').textContent = cfg.email;
   const links = el('site-links');
   links.textContent = '';
   (cfg.links || []).forEach(function (l) {
+    if (l.action === 'email') {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'linkbtn';
+      b.textContent = l.label;
+      b.addEventListener('click', openEmail);
+      links.appendChild(b);
+      return;
+    }
     const a = document.createElement('a');
     a.href = l.href;
     a.textContent = l.label;
-    if (l.href.indexOf('http') === 0) { a.target = '_blank'; a.rel = 'noreferrer'; }
+    if (String(l.href || '').indexOf('http') === 0) { a.target = '_blank'; a.rel = 'noreferrer'; }
     links.appendChild(a);
   });
   const owner = cfg.owner ? ('\u00A9 ' + cfg.owner) : '';
@@ -178,6 +237,7 @@ function applyConfig(cfg) {
 
 async function main() {
   wireLightbox();
+  wireEmail();
   const cfg = await loadJson('/config.json');
   applyConfig(cfg);
 
